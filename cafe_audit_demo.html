@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Café Audit · 3D Diagnostics Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── LIGHT THEME: role-swap principle ─────────────────────────────────────────
+   Dark→Light: background ↔ text roles; brand accents (#2251FF, #134E64) fixed;
+   dimension indicator colors deepened from pastels to full brand/UI hues.      */
+:root{
+  /* Surfaces — Cream as page, White as card */
+  --bg:#F5F5F2;   /* Cream brand color → page background   */
+  --s1:#FFFFFF;   /* White → card/panel surfaces            */
+  --s2:#EEF2FF;   /* Very light brand-blue tint → tooltip   */
+  /* Brand colors — UNCHANGED */
+  --blue:#2251FF; --teal:#134E64;
+  /* Text (swapped from dark) */
+  --cream:#051C2C;/* Navy brand color → primary text        */
+  --gray:#4A6072; /* Darkened from #7A8A96 for light bg     */
+  --dim:#C8D4DC;  /* Light separator / default border       */
+  --dimtxt:#6A8090;
+  /* Status — UNCHANGED */
+  --green:#00C853;--red:#D32F2F;--amber:#E65100;--yel:#F9A825;
+  /* Borders */
+  --bd:rgba(5,28,44,.1); --bd2:rgba(34,81,255,.36);
+  /* Dimension indicator colors — deepened from pastels for light bg readability */
+  --cx-c:#2251FF; /* Brand Blue   (was pastel #4FC3F7) */
+  --ops-c:#134E64;/* Brand Teal   (was pastel #80CBC4) */
+  --rev-c:#E65100;/* Warm Amber   (was pastel #FFB74D) */
+  --fd:'Cormorant Garamond',Georgia,serif;
+  --fm:'JetBrains Mono',monospace;
+  --fb:'DM Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--cream);font-family:var(--fb);font-size:14px;line-height:1.5;height:100vh;overflow:hidden}
+
+/* ─ HEADER — stays dark (Navy brand anchor) ─────── */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 22px;
+  border-bottom:1px solid rgba(245,245,242,.1);background:#051C2C;gap:12px;flex-wrap:wrap;min-height:52px}
+.brand-name{font-family:var(--fd);font-size:17px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#F5F5F2}
+.brand-sub{font-family:var(--fm);font-size:7.5px;color:rgba(245,245,242,.45);letter-spacing:.15em;margin-top:1px}
+.mark{color:var(--blue)}
+.ctrls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+/* Seg + controls on dark header — explicit overrides */
+.seg{display:flex;background:rgba(245,245,242,.07);border:1px solid rgba(245,245,242,.16);border-radius:2px;overflow:hidden}
+.sgb{padding:5px 13px;background:transparent;border:none;color:rgba(245,245,242,.5);font-family:var(--fm);font-size:8px;font-weight:700;letter-spacing:.1em;cursor:pointer;transition:all .18s;text-transform:uppercase}
+.sgb.on{background:var(--blue);color:#fff}
+.sgb:hover:not(.on){background:rgba(34,81,255,.18);color:#F5F5F2}
+.cf{display:flex;align-items:center;gap:7px}
+.cl{font-family:var(--fm);font-size:7.5px;color:rgba(245,245,242,.4);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.ci{background:rgba(245,245,242,.07);border:1px solid rgba(245,245,242,.16);color:#F5F5F2;font-family:var(--fm);font-size:12px;padding:4px 9px;width:74px;border-radius:2px;text-align:right}
+.ci:focus{outline:none;border-color:var(--blue)}
+.prog-badge{font-family:var(--fm);font-size:7.5px;color:rgba(245,245,242,.4);letter-spacing:.08em;padding:3px 9px;border:1px solid rgba(245,245,242,.16);border-radius:2px;white-space:nowrap}
+.prog-badge b{color:var(--blue);font-weight:700}
+
+/* ─ LAYOUT ──────────────────────────────────────── */
+.app{display:grid;grid-template-columns:365px 1fr;height:calc(100vh - 52px)}
+
+/* ─ INPUT PANEL ─────────────────────────────────── */
+.inp{border-right:1px solid var(--bd);overflow-y:auto;display:flex;flex-direction:column;background:var(--s1)}
+/* Teal section header — same teal, white text (works on any bg) */
+.inp-h{padding:9px 16px;background:var(--teal);color:#F5F5F2;font-family:var(--fm);font-size:8px;font-weight:700;letter-spacing:.17em;text-transform:uppercase;position:sticky;top:0;z-index:10;border-bottom:1px solid rgba(19,78,100,.3)}
+.stabs{display:flex;border-bottom:1px solid var(--bd);position:sticky;top:34px;z-index:9;background:var(--s1)}
+.stab{flex:1;padding:7px 4px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--gray);font-family:var(--fm);font-size:8px;font-weight:700;letter-spacing:.07em;cursor:pointer;transition:all .18s;text-transform:uppercase;text-align:center;line-height:1.35}
+.stab-t{font-size:9px;display:block}.stab-l{font-size:6.5px;opacity:.7;display:block}
+.stab.on{color:var(--cream);border-bottom-color:var(--blue);background:rgba(34,81,255,.05)}
+.stab:hover:not(.on){background:rgba(5,28,44,.03);color:var(--cream)}
+/* Dimension group header — subtle teal tint on light bg */
+.dgh{padding:4px 16px;background:rgba(19,78,100,.07);font-family:var(--fm);font-size:7.5px;font-weight:700;letter-spacing:.15em;color:var(--teal);text-transform:uppercase;border-bottom:1px solid rgba(5,28,44,.05)}
+.mrow{display:flex;align-items:center;padding:6px 8px 6px 16px;border-bottom:1px solid rgba(5,28,44,.05);gap:7px;transition:background .1s;background:var(--s1)}
+.mrow:hover{background:rgba(34,81,255,.04)}
+.mi-wrap{flex:1;min-width:0}
+.mid{font-family:var(--fm);font-size:7px;color:var(--dimtxt);letter-spacing:.06em;margin-bottom:1px}
+.mname{font-size:11.5px;font-weight:500;color:var(--cream)}
+.sdots{display:flex;gap:3px;flex-shrink:0}
+.sdot{width:4px;height:4px;border-radius:50%;background:var(--dim);transition:background .2s,opacity .2s;opacity:.6}
+.sdot.f{background:var(--blue);opacity:1}
+.spkr{display:flex;gap:2px;flex-shrink:0}
+/* Score buttons on light bg — white pill with colored border when selected */
+.sb{width:24px;height:24px;background:var(--s1);border:1px solid var(--dim);color:var(--gray);font-family:var(--fm);font-size:10.5px;font-weight:700;cursor:pointer;border-radius:2px;transition:all .12s;display:flex;align-items:center;justify-content:center}
+.sb:hover{border-color:var(--blue);color:var(--cream);background:rgba(34,81,255,.06)}
+.sb.on[data-v="1"]{background:#FFEBEE;border-color:#C62828;color:#B71C1C}
+.sb.on[data-v="2"]{background:#FFF3E0;border-color:#E65100;color:#BF360C}
+.sb.on[data-v="3"]{background:#FFFDE7;border-color:#F9A825;color:#E65100}
+.sb.on[data-v="4"]{background:#E8F5E9;border-color:#2E7D32;color:#1B5E20}
+.sb.on[data-v="5"]{background:#F1F8E9;border-color:#00C853;color:#1B5E20}
+/* Shift summary — light teal tint to lift from white panel */
+.ssum{padding:9px 14px;background:rgba(19,78,100,.06);border-top:1px solid var(--bd);display:flex;gap:10px;position:sticky;bottom:0}
+.ss-i{flex:1}.ss-l{font-family:var(--fm);font-size:7px;color:var(--gray);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1px}
+.ss-v{font-family:var(--fm);font-size:15px;font-weight:700;color:var(--cream);transition:all .3s}
+.ss-trk{height:2px;background:rgba(5,28,44,.08);border-radius:1px;margin-top:2px;overflow:hidden}
+.ss-f{height:100%;border-radius:1px;transition:width .5s ease}
+
+/* ─ DASHBOARD ───────────────────────────────────── */
+.dash{overflow-y:auto;display:flex;flex-direction:column}
+
+/* KPI cards — white on cream creates gentle card lift */
+.krow{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--bd)}
+.kc{padding:18px 20px;border-right:1px solid var(--bd);position:relative;overflow:hidden;background:var(--s1);box-shadow:0 1px 0 rgba(5,28,44,.04)}
+.kc:last-child{border-right:none}
+.klbl{font-family:var(--fm);font-size:7.5px;font-weight:700;letter-spacing:.16em;color:var(--gray);text-transform:uppercase;margin-bottom:5px}
+.kfrm{font-family:var(--fm);font-size:7px;color:var(--dimtxt);letter-spacing:.06em;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kval{font-family:var(--fm);font-size:36px;font-weight:700;line-height:1;letter-spacing:-.02em;transition:all .3s;color:var(--cream)}
+.kval.g-s,.kval.g-a{color:#1E8A40}.kval.g-b{color:#CC7A00}.kval.g-c{color:var(--amber)}.kval.g-f{color:var(--red)}.kval.alert{color:var(--red)}
+.ksub{font-family:var(--fm);font-size:7.5px;color:var(--gray);margin-top:5px;letter-spacing:.05em}
+.kbar{position:absolute;bottom:0;left:0;right:0;height:2px}
+.kbar-i{height:100%;transition:width .6s ease,background .3s;background:var(--blue)}
+@keyframes kpulse{0%{opacity:1}40%{opacity:.2}100%{opacity:1}}
+.kval.upd{animation:kpulse .3s ease}
+
+/* Dimension row — cream bg (sits on page, cards above) */
+.drow{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--bd);background:var(--bg)}
+.dcell{padding:11px 17px;border-right:1px solid var(--bd)}.dcell:last-child{border-right:none}
+.d-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.d-nm{font-family:var(--fm);font-size:7px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.d-nm.cx{color:var(--cx-c)}.d-nm.ops{color:var(--ops-c)}.d-nm.rev{color:var(--rev-c)}
+.d-wt{font-family:var(--fm);font-size:9px;font-weight:700;color:var(--blue);transition:all .25s}
+.d-val{font-family:var(--fm);font-size:22px;font-weight:700;line-height:1;transition:all .35s;color:var(--cream)}
+.d-val.no{color:rgba(5,28,44,.18)}
+/* Track on cream bg — navy-tinted fill track */
+.d-trk{height:3px;background:rgba(5,28,44,.08);border-radius:2px;margin:4px 0 3px;overflow:hidden}
+.d-fill{height:100%;border-radius:2px;transition:width .6s ease}
+.d-fill.cx{background:var(--cx-c)}.d-fill.ops{background:var(--ops-c)}.d-fill.rev{background:var(--rev-c)}
+.d-bench{font-family:var(--fm);font-size:7px;letter-spacing:.05em}
+.d-bench.above{color:#1E8A40}.d-bench.below{color:var(--red)}.d-bench.none{color:var(--gray)}
+
+/* Analysis row */
+.arow{display:grid;grid-template-columns:248px 1fr;min-height:300px;background:var(--s1)}
+.rdr-wrap{border-right:1px solid var(--bd);padding:14px;display:flex;flex-direction:column;align-items:center}
+.sec-lbl{font-family:var(--fm);font-size:7.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gray);margin-bottom:9px;align-self:flex-start}
+.rdr-svg{width:204px;height:204px}
+.r-leg{display:flex;gap:12px;margin-top:7px}
+.r-li{display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:7px;color:var(--gray)}
+.r-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* Red flags */
+.fl-wrap{padding:14px;overflow-y:auto;display:flex;flex-direction:column}
+.fl-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:8px;color:var(--gray);min-height:200px}
+.fl-ok{font-size:26px;color:var(--green);opacity:.8}
+.fl-ok-lbl{font-family:var(--fm);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal)}
+.fl-ok-sub{font-size:10.5px;color:var(--dimtxt);font-family:var(--fm);text-align:center;line-height:1.6}
+.ftbl{width:100%;border-collapse:collapse}
+.ftbl th{font-family:var(--fm);font-size:7.5px;font-weight:700;letter-spacing:.1em;color:var(--gray);text-transform:uppercase;padding:0 6px 7px;text-align:left;border-bottom:1px solid var(--bd)}
+@keyframes fslide{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:translateX(0)}}
+.frow{animation:fslide .22s ease}.frow td{padding:7px 6px;border-bottom:1px solid rgba(5,28,44,.06);vertical-align:top}
+.f-badge{display:inline-block;padding:1px 5px;background:rgba(211,47,47,.08);border:1px solid rgba(211,47,47,.25);color:#C62828;font-family:var(--fm);font-size:7px;font-weight:700;letter-spacing:.08em;border-radius:1px;text-transform:uppercase;margin-bottom:2px}
+.f-id{font-family:var(--fm);font-size:7.5px;color:var(--gray)}
+.f-di{font-family:var(--fm);font-size:7px;color:var(--dimtxt);text-transform:uppercase;letter-spacing:.07em}
+.f-sc{font-family:var(--fm);font-size:18px;font-weight:700;color:var(--red);text-align:center}
+.f-nm{font-weight:500;font-size:11px;line-height:1.3;color:var(--cream)}
+.f-ac{font-size:10px;color:var(--gray);line-height:1.55;margin-top:2px}
+
+/* Footer */
+.footer{padding:8px 22px;border-top:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;background:var(--bg)}
+.ft{font-family:var(--fm);font-size:7px;color:var(--dimtxt);letter-spacing:.07em}
+
+/* Tooltip — light blue tint, navy text */
+.tip{position:fixed;background:var(--s2);border:1px solid var(--bd2);padding:8px 11px;max-width:228px;border-radius:3px;z-index:9999;pointer-events:none;opacity:0;transition:opacity .14s;line-height:1.55;box-shadow:0 4px 18px rgba(5,28,44,.12);color:var(--cream);font-size:11px}
+.tip.vis{opacity:1}
+.tip-sc{font-family:var(--fm);font-size:7.5px;color:var(--blue);font-weight:700;letter-spacing:.1em;margin-bottom:4px}
+
+/* Scrollbars — subtle on light bg */
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--gray)}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div>
+    <div class="brand-name"><span class="mark">◆</span> Café Audit System</div>
+    <div class="brand-sub">3D DIAGNOSTICS ENGINE  ·  LIVE SIMULATION</div>
+  </div>
+  <div class="ctrls">
+    <div class="seg">
+      <button class="sgb on" id="btn-sf" onclick="setST('Speed-First')">SPEED-FIRST</button>
+      <button class="sgb" id="btn-sp" onclick="setST('Space-First')">SPACE-FIRST</button>
+    </div>
+    <div class="cf">
+      <span class="cl">ASP $</span>
+      <input class="ci" type="number" id="asp" value="4.50" step="0.50" min="0.50" max="50">
+    </div>
+    <div class="cf">
+      <span class="cl">Lost / Day</span>
+      <input class="ci" type="number" id="lost" value="0" step="1" min="0" max="999">
+    </div>
+    <div class="prog-badge">Scored: <b id="prog">0</b> / 36</div>
+  </div>
+</header>
+
+<div class="app">
+
+  <aside class="inp">
+    <div class="inp-h">▌  AUDIT INPUT  —  Enter Scores Per Shift</div>
+    <div class="stabs">
+      <button class="stab on" onclick="setShift(0)">
+        <span class="stab-t">08:00–10:00</span>
+        <span class="stab-l">Morning Peak</span>
+      </button>
+      <button class="stab" onclick="setShift(1)">
+        <span class="stab-t">14:00–16:00</span>
+        <span class="stab-l">Afternoon Rush</span>
+      </button>
+      <button class="stab" onclick="setShift(2)">
+        <span class="stab-t">18:00–19:00</span>
+        <span class="stab-l">Off-Peak</span>
+      </button>
+    </div>
+    <div id="mlist"></div>
+    <div class="ssum">
+      <div class="ss-i"><div class="ss-l">CX Avg</div><div class="ss-v" id="ss-cx">—</div><div class="ss-trk"><div class="ss-f" id="sb-cx" style="width:0%;background:var(--cx-c)"></div></div></div>
+      <div class="ss-i"><div class="ss-l">Ops Avg</div><div class="ss-v" id="ss-ops">—</div><div class="ss-trk"><div class="ss-f" id="sb-ops" style="width:0%;background:var(--ops-c)"></div></div></div>
+      <div class="ss-i"><div class="ss-l">Rev Avg</div><div class="ss-v" id="ss-rev">—</div><div class="ss-trk"><div class="ss-f" id="sb-rev" style="width:0%;background:var(--rev-c)"></div></div></div>
+    </div>
+  </aside>
+
+  <main class="dash">
+
+    <div class="krow">
+      <div class="kc">
+        <div class="klbl">Overall Score</div>
+        <div class="kfrm">SUMPRODUCT(CHOOSE(MATCH(store_type,…),speed_w,space_w), dim_scores)</div>
+        <div class="kval" id="kv-score">—</div>
+        <div class="ksub">/ 5.0  ·  Weighted composite</div>
+        <div class="kbar"><div class="kbar-i" id="kb-score" style="width:0%"></div></div>
+      </div>
+      <div class="kc">
+        <div class="klbl">Performance Grade</div>
+        <div class="kfrm">IFS(≥4.5→S, ≥4.0→A, ≥3.0→B, ≥2.0→C, &lt;2.0→F)</div>
+        <div class="kval" id="kv-grade">—</div>
+        <div class="ksub">S ≥ 4.5  A ≥ 4.0  B ≥ 3.0  C ≥ 2.0  F &lt; 2.0</div>
+        <div class="kbar"><div class="kbar-i" id="kb-grade" style="width:0%"></div></div>
+      </div>
+      <div class="kc">
+        <div class="klbl">Revenue Leakage / Mo.</div>
+        <div class="kfrm">Lost_Customers × ASP × 30 days</div>
+        <div class="kval" id="kv-leak">$0</div>
+        <div class="ksub" id="ks-leak">Alert threshold: $500 / month</div>
+        <div class="kbar"><div class="kbar-i" id="kb-leak" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="drow">
+      <div class="dcell">
+        <div class="d-top"><div class="d-nm cx">Customer Experience</div><div class="d-wt" id="wt-cx">30%</div></div>
+        <div class="d-val no" id="dv-cx">—</div>
+        <div class="d-trk"><div class="d-fill cx" id="df-cx" style="width:0%"></div></div>
+        <div class="d-bench none" id="db-cx">Benchmark: 4.0</div>
+      </div>
+      <div class="dcell">
+        <div class="d-top"><div class="d-nm ops">Operations</div><div class="d-wt" id="wt-ops">40%</div></div>
+        <div class="d-val no" id="dv-ops">—</div>
+        <div class="d-trk"><div class="d-fill ops" id="df-ops" style="width:0%"></div></div>
+        <div class="d-bench none" id="db-ops">Benchmark: 3.8</div>
+      </div>
+      <div class="dcell">
+        <div class="d-top"><div class="d-nm rev">Revenue Opportunity</div><div class="d-wt" id="wt-rev">30%</div></div>
+        <div class="d-val no" id="dv-rev">—</div>
+        <div class="d-trk"><div class="d-fill rev" id="df-rev" style="width:0%"></div></div>
+        <div class="d-bench none" id="db-rev">Benchmark: 3.5</div>
+      </div>
+    </div>
+
+    <div class="arow">
+      <div class="rdr-wrap">
+        <div class="sec-lbl">Performance Radar</div>
+        <svg class="rdr-svg" id="rsvg" viewBox="0 0 204 204"></svg>
+        <div class="r-leg">
+          <div class="r-li"><div class="r-dot" style="background:#2251FF;opacity:.8"></div>Actual</div>
+          <div class="r-li"><div class="r-dot" style="border:1.5px dashed rgba(5,28,44,.4);background:transparent"></div>Benchmark</div>
+        </div>
+      </div>
+      <div class="fl-wrap">
+        <div class="sec-lbl">▌  ACTION ITEMS  —  Red Flag Metrics  (Avg &lt; 2.5)  ·  FILTER(Metric_Report_Range, Red_Flag_Vector=TRUE)</div>
+        <div id="fl-body" style="flex:1;display:flex;flex-direction:column"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="ft">Simulation mirrors Calc_Engine formulas: AVERAGEIF · SUMPRODUCT+CHOOSE+MATCH · IFS · FILTER · Revenue leakage = lost × ASP × 30</span>
+      <span class="ft" id="fl-count">0 RED FLAGS</span>
+    </div>
+
+  </main>
+</div>
+
+<div class="tip" id="tip"><div class="tip-sc" id="tip-sc"></div><div id="tip-tx"></div></div>
+
+<script>
+const M=[
+  {id:"CX_001",dim:"CX", name:"Service Friendliness",
+   rx:"Implement service standards training. Introduce daily briefing for hospitality KPIs."},
+  {id:"CX_002",dim:"CX", name:"Queue & Wait Time",
+   rx:"Deploy queue management system. Train staff on proactive ETA communication."},
+  {id:"CX_003",dim:"CX", name:"Order Accuracy",
+   rx:"Introduce order verification checklist. Review drink ticketing workflow end-to-end."},
+  {id:"CX_004",dim:"CX", name:"Atmosphere & Seating",
+   rx:"Conduct seating audit. Address noise and temperature controls. Schedule deep-clean cycle."},
+  {id:"OPS_001",dim:"Ops",name:"Barista Workflow Efficiency",
+   rx:"Map current workflow. Implement station layout redesign. Cross-train all staff members."},
+  {id:"OPS_002",dim:"Ops",name:"Equipment Reliability",
+   rx:"Schedule preventive maintenance calendar. Build equipment checklist. Source backup units."},
+  {id:"OPS_003",dim:"Ops",name:"Counter Cleanliness",
+   rx:"Implement hourly cleaning schedule. Assign counter ownership per staff member per shift."},
+  {id:"OPS_004",dim:"Ops",name:"Menu & Stock Availability",
+   rx:"Deploy real-time inventory tracking. Implement 80/20 par-level restocking system."},
+  {id:"REV_001",dim:"Rev",name:"Menu Visibility & Upselling",
+   rx:"Redesign menu board layout. Script upsell prompts. Introduce combo promotions."},
+  {id:"REV_002",dim:"Rev",name:"Peak Capacity Utilization",
+   rx:"Implement reservation or queue-ahead system. Install peak-hour promotional signage."},
+  {id:"REV_003",dim:"Rev",name:"Pricing Perception",
+   rx:"Review pricing vs local competitive set. Strengthen premium product storytelling."},
+  {id:"REV_004",dim:"Rev",name:"Secondary Spend Opportunity",
+   rx:"Introduce grab-and-go retail section. Train staff on cross-selling protocol."},
+];
+const RUB=[
+  ["Staff dismissive or rude; customers ignored or poorly treated","Minimal acknowledgment; purely transactional; no warmth observable","Polite and professional; basic greeting and thank-you consistently delivered","Warm and engaged; staff proactively helpful; personal touch observed","Outstanding hospitality; every interaction memorable; zero negative moments"],
+  ["Wait exceeds 10 min; no queue visibility or management observed","Wait 7–10 min; customers not informed of expected delay","Wait 4–6 min; staff aware of queue; no proactive ETA communication","Wait 2–3 min; queue actively managed; ETAs communicated when asked","Wait under 2 min; no visible bottleneck at any point during shift"],
+  ["Multiple order errors observed; no systematic correction process","Error rate above 20%; staff slow to acknowledge or rectify mistakes","Occasional errors below 10%; corrected promptly when identified","Rare errors below 5%; immediate correction and verbal apology given","Zero errors observed; consistent accuracy confirmed across all orders"],
+  ["Uncomfortable or visibly dirty; noise intolerable; seating inadequate","Below-average comfort; limited clean seating; poor temperature control","Adequate; most seats available and clean; acceptable ambient noise","Pleasant and welcoming; good seating availability; comfortable temperature","Exceptional ambiance; abundant seating; immersive and memorable environment"],
+  ["Disorganized station; multiple bottlenecks; significant visible idle time","Inefficient flow; frequent pauses; rework observed during service periods","Functional workflow; some avoidable inefficiencies; handoffs occasionally unclear","Efficient and smooth; clear handoffs between stations; minimal waste motion","Fully optimized; cross-trained staff visible; zero wasted motion observed"],
+  ["Frequent equipment failures causing visible customer-facing disruptions","Visible maintenance issues; output noticeably slower than expected capacity","Equipment functional; minor delays due to sub-optimal maintenance","All equipment operational and calibrated; clean and properly set up","Peak equipment performance; backup protocol visibly in place; zero failure"],
+  ["Counter visibly dirty; spills and debris left unaddressed for extended time","Untidy workspace; cleaning observed only reactively after accumulation","Acceptable cleanliness; area cleaned between major rushes proactively","Consistently clean; proactive wiping and organization maintained throughout","Immaculate at all times; continuous cleaning routine clearly enforced"],
+  ["More than 3 items unavailable; no customer notice or signage visible","2–3 items out of stock; poor communication to customers at point of order","1–2 items unavailable; staff informs customers clearly at point of ordering","Fully stocked; daily specials clearly marked and communicated to guests","Fully stocked including seasonal additions; zero stockouts throughout shift"],
+  ["No upselling observed; menu not visible, unclear, or frequently obstructed","Passive menu display only; no verbal suggestions or recommendations offered","Menu clearly visible; upselling attempted occasionally with moderate success","Clear and accessible menu; consistent upsell offers at point of ordering","Strategic placement and trained upselling observed; high conversion rate noted"],
+  ["Under 40% of seats occupied during peak; no effort to attract more traffic","40–60% occupied; no promotional strategy visible to maximize peak footfall","60–75% occupied; basic in-store promotions visible; moderate queue turnover","75–90% occupied; active reservation or queue-ahead management in use","Over 90% occupied; active waitlist managed; overflow footfall captured"],
+  ["Customers vocalize poor value perception; no premium positioning observed","Price-to-value disconnect evident; no visible quality or premium cues","Pricing accepted without visible objection; limited product differentiation","Value clearly communicated; premium signals consistently present throughout","Strong perceived value; customers willingly pay premium; loyalty visible"],
+  ["No merchandise, retail items, or add-on offers present anywhere in store","Merchandise visible but no active promotion or staff mention observed","Staff mentions add-ons or retail items occasionally during service interactions","Clear secondary display; staff trained and regularly recommending add-ons","Integrated secondary spend strategy; measurable basket-size uplift observable"],
+];
+const BENCH=[4.0,3.8,3.5];
+const W={"Speed-First":[.30,.40,.30],"Space-First":[.50,.30,.20]};
+
+const st={
+  type:"Speed-First",asp:4.50,lost:0,shift:0,
+  sc:Array.from({length:12},()=>({0:0,1:0,2:0}))
+};
+[4,3,5,4, 4,3,4,3, 3,2,4,3].forEach((v,i)=>st.sc[i][0]=v);
+
+function avg(arr){const v=arr.filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null}
+function calc(){
+  const w=W[st.type];
+  const ma=st.sc.map(s=>avg(Object.values(s)));
+  const cx=avg(ma.slice(0,4)),ops=avg(ma.slice(4,8)),rev=avg(ma.slice(8,12));
+  const ds=[cx??0,ops??0,rev??0];
+  const ov=ds[0]*w[0]+ds[1]*w[1]+ds[2]*w[2];
+  const any=ds.some(d=>d>0);
+  const gr=!any?"—":ov>=4.5?"S":ov>=4.0?"A":ov>=3.0?"B":ov>=2.0?"C":"F";
+  const lk=st.lost*st.asp*30;
+  const rf=ma.map((a,i)=>({...M[i],avg:a,i})).filter(m=>m.avg!==null&&m.avg<2.5);
+  return{ma,cx,ops,rev,ov:any?ov:null,gr,lk,rf,w,any};
+}
+
+/* ── RADAR — light-theme SVG colors ─────────────── */
+const CX=102,CY=104,R=82;
+function rpt(ai,s){const a=[-Math.PI/2,Math.PI/6,5*Math.PI/6][ai];return[CX+R*s*Math.cos(a),CY+R*s*Math.sin(a)]}
+function pth(sc){const p=sc.map((s,i)=>rpt(i,s));return`M${p[0]} L${p[1]} L${p[2]} Z`}
+function initRadar(){
+  const svg=document.getElementById('rsvg');
+  let h='';
+  // Grid rings — navy-tinted (subtle on cream/white)
+  for(let l=1;l<=5;l++){const s=l/5,p=[0,1,2].map(i=>rpt(i,s).join(','));h+=`<path d="M${p[0]} L${p[1]} L${p[2]} Z" fill="none" stroke="rgba(5,28,44,.07)" stroke-width="1"/>`;}
+  // Axis lines — navy-tinted
+  for(let i=0;i<3;i++){const[x,y]=rpt(i,1);h+=`<line x1="${CX}" y1="${CY}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(5,28,44,.14)" stroke-width="1"/>`;}
+  // Scale labels on CX axis — dark navy muted text
+  for(let l=1;l<=5;l++){const[x,y]=rpt(0,l/5);h+=`<text x="${(x+4).toFixed(1)}" y="${(y+3).toFixed(1)}" fill="rgba(5,28,44,.32)" font-family="JetBrains Mono,monospace" font-size="7">${l}</text>`;}
+  // Axis labels — full navy
+  [["CX",-Math.PI/2,"middle"],["OPS",Math.PI/6,"start"],["REV",5*Math.PI/6,"end"]].forEach(([lbl,a,anc])=>{
+    const[x,y]=[CX+R*1.22*Math.cos(a),CY+R*1.22*Math.sin(a)];
+    h+=`<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" fill="#051C2C" font-family="JetBrains Mono,monospace" font-size="9" font-weight="700" text-anchor="${anc}" letter-spacing="0.1em">${lbl}</text>`;
+  });
+  // Benchmark polygon — navy-tinted dashed
+  h+=`<path d="${pth(BENCH.map(b=>b/5))}" fill="none" stroke="rgba(5,28,44,.4)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+  // Actual polygon — brand blue, lighter fill for light bg
+  h+=`<path id="r-act" d="${pth([0,0,0])}" fill="rgba(34,81,255,.12)" stroke="#2251FF" stroke-width="2"/>`;
+  svg.innerHTML=h;
+}
+function updRadar(cx,ops,rev){
+  const el=document.getElementById('r-act');
+  if(el)el.setAttribute('d',pth([(cx??0)/5,(ops??0)/5,(rev??0)/5]));
+}
+
+function buildList(){
+  const dims=[
+    {lbl:"Customer Experience — CX",idx:[0,1,2,3]},
+    {lbl:"Operations — Ops",idx:[4,5,6,7]},
+    {lbl:"Revenue Opportunity — Rev",idx:[8,9,10,11]},
+  ];
+  let h='';
+  dims.forEach(d=>{
+    h+=`<div class="dgh">▸ ${d.lbl}</div>`;
+    d.idx.forEach(mi=>{
+      const m=M[mi];
+      const sbs=[1,2,3,4,5].map(v=>`<button class="sb" data-mi="${mi}" data-v="${v}" onclick="setScore(${mi},${v})">${v}</button>`).join('');
+      h+=`<div class="mrow"><div class="mi-wrap"><div class="mid">${m.id}</div><div class="mname">${m.name}</div></div><div class="sdots" id="dots-${mi}"><div class="sdot" data-si="0"></div><div class="sdot" data-si="1"></div><div class="sdot" data-si="2"></div></div><div class="spkr" id="pk-${mi}">${sbs}</div></div>`;
+    });
+  });
+  document.getElementById('mlist').innerHTML=h;
+  updPickers();
+  document.querySelectorAll('.sb').forEach(b=>{
+    b.addEventListener('mouseenter',e=>showTip(+b.dataset.mi,+b.dataset.v,e));
+    b.addEventListener('mousemove',moveTip);
+    b.addEventListener('mouseleave',()=>document.getElementById('tip').classList.remove('vis'));
+  });
+}
+function updPickers(){
+  const si=st.shift;
+  M.forEach((_,mi)=>{
+    const pk=document.getElementById(`pk-${mi}`);
+    const dots=document.getElementById(`dots-${mi}`);
+    if(!pk)return;
+    pk.querySelectorAll('.sb').forEach(b=>b.classList.toggle('on',+b.dataset.v===st.sc[mi][si]));
+    if(dots)dots.querySelectorAll('.sdot').forEach(d=>d.classList.toggle('f',st.sc[mi][+d.dataset.si]>0));
+  });
+}
+
+function pulse(id){const e=document.getElementById(id);e.classList.remove('upd');void e.offsetWidth;e.classList.add('upd')}
+function updUI(){
+  const r=calc();
+  const sv=r.ov!==null?r.ov.toFixed(2):'—';
+  const se=document.getElementById('kv-score');
+  if(se.textContent!==sv){se.textContent=sv;pulse('kv-score');}
+  document.getElementById('kb-score').style.width=r.ov!==null?(r.ov/5*100)+'%':'0%';
+  const ge=document.getElementById('kv-grade');
+  ge.textContent=r.gr;
+  ge.className='kval'+(r.gr!=='—'?` g-${r.gr.toLowerCase()}`:'');
+  if(r.gr!=='—')pulse('kv-grade');
+  const gc=r.gr==='S'||r.gr==='A'?'#1E8A40':r.gr==='B'?'#CC7A00':r.gr==='C'?'var(--amber)':'var(--red)';
+  const gb=document.getElementById('kb-grade');
+  gb.style.width=r.ov!==null?(r.ov/5*100)+'%':'0%';
+  gb.style.background=r.gr!=='—'?gc:'var(--blue)';
+  const ls='$'+Math.round(r.lk).toLocaleString();
+  const le=document.getElementById('kv-leak');
+  if(le.textContent!==ls){le.textContent=ls;pulse('kv-leak');}
+  le.className='kval'+(r.lk>500?' alert':'');
+  document.getElementById('kb-leak').style.cssText=`width:${Math.min(r.lk/2000*100,100)}%;background:${r.lk>500?'var(--red)':'var(--blue)'}`;
+  document.getElementById('ks-leak').textContent=r.lk>500?'⚠  Exceeds $500 alert threshold':'Alert threshold: $500 / month';
+  [['cx',r.cx,4.0,0],['ops',r.ops,3.8,1],['rev',r.rev,3.5,2]].forEach(([k,v,b,wi])=>{
+    document.getElementById(`wt-${k}`).textContent=Math.round(r.w[wi]*100)+'%';
+    const de=document.getElementById(`dv-${k}`);
+    de.textContent=v!==null?v.toFixed(2):'—';
+    de.className='d-val'+(v===null?' no':'');
+    document.getElementById(`df-${k}`).style.width=(v!==null?v/5*100:0)+'%';
+    const be=document.getElementById(`db-${k}`);
+    if(v===null){be.textContent=`Benchmark: ${b.toFixed(1)}`;be.className='d-bench none';}
+    else{const d=(v-b).toFixed(2),sg=d>=0?'+':'';be.textContent=`${sg}${d} vs benchmark`;be.className='d-bench '+(d>=0?'above':'below');}
+  });
+  const si=st.shift;
+  [['cx',0,4,'var(--cx-c)'],['ops',4,8,'var(--ops-c)'],['rev',8,12,'var(--rev-c)']].forEach(([k,s,e,c])=>{
+    const vs=st.sc.slice(s,e).map(x=>x[si]).filter(v=>v>0);
+    const a=vs.length?vs.reduce((x,y)=>x+y,0)/vs.length:null;
+    document.getElementById(`ss-${k}`).textContent=a!==null?a.toFixed(1):'—';
+    document.getElementById(`sb-${k}`).style.cssText=`width:${a?a/5*100:0}%;background:${c}`;
+  });
+  const filled=st.sc.reduce((t,s)=>t+Object.values(s).filter(v=>v>0).length,0);
+  document.getElementById('prog').textContent=filled;
+  updRadar(r.cx,r.ops,r.rev);
+  updFlags(r.rf);
+  document.getElementById('fl-count').textContent=r.rf.length+(r.rf.length===1?' RED FLAG':' RED FLAGS');
+}
+function updFlags(rf){
+  const c=document.getElementById('fl-body');
+  if(!rf.length){
+    c.innerHTML=`<div class="fl-empty"><div class="fl-ok">✓</div><div class="fl-ok-lbl">No High-Risk Issues</div><div class="fl-ok-sub">All 12 metrics meet the 2.5 threshold<br>No action items required</div></div>`;
+    return;
+  }
+  const rows=rf.map(m=>`<tr class="frow"><td><div class="f-id">${m.id}</div><div class="f-di">${m.dim}</div></td><td><div class="f-sc">${m.avg.toFixed(1)}</div></td><td><div class="f-badge">RED FLAG</div><div class="f-nm">${m.name}</div><div class="f-ac">${m.rx}</div></td></tr>`).join('');
+  c.innerHTML=`<table class="ftbl"><thead><tr><th>Metric</th><th style="text-align:center">Avg</th><th>Recommended Action</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function showTip(mi,v,e){
+  const t=document.getElementById('tip');
+  document.getElementById('tip-sc').textContent=`SCORE ${v}  ·  ${M[mi].id}  ·  ${M[mi].name}`;
+  document.getElementById('tip-tx').textContent=RUB[mi][v-1];
+  t.classList.add('vis');moveTip(e);
+}
+function moveTip(e){
+  const t=document.getElementById('tip');
+  const x=e.clientX+14,y=e.clientY-10;
+  t.style.left=(x+t.offsetWidth>window.innerWidth?x-t.offsetWidth-20:x)+'px';
+  t.style.top=(y+t.offsetHeight>window.innerHeight?y-t.offsetHeight:y)+'px';
+}
+function setScore(mi,v){st.sc[mi][st.shift]=st.sc[mi][st.shift]===v?0:v;updPickers();updUI();}
+function setShift(idx){st.shift=idx;document.querySelectorAll('.stab').forEach((t,i)=>t.classList.toggle('on',i===idx));updPickers();updUI();}
+function setST(type){st.type=type;document.getElementById('btn-sf').classList.toggle('on',type==='Speed-First');document.getElementById('btn-sp').classList.toggle('on',type==='Space-First');updUI();}
+document.getElementById('asp').addEventListener('input',e=>{st.asp=parseFloat(e.target.value)||4.50;updUI();});
+document.getElementById('lost').addEventListener('input',e=>{st.lost=parseInt(e.target.value)||0;updUI();});
+initRadar();buildList();updUI();
+</script>
+</body>
+</html>
