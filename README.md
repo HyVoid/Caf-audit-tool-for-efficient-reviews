@@ -1,6 +1,3 @@
-[English](#café-audit--3d-diagnostics-engine) · [中文](#咖啡馆审计--三维诊断引擎)
-
----
 
 # Café Audit · 3D Diagnostics Engine
 
@@ -12,11 +9,12 @@
 
 ---
 
-[▶ Live Demo](cafe_audit_demo.html) · [⬇ Download Workbook](cafe_audit_tool.xlsx) · [↓ Methodology](#workbook-logic-for-the-skeptical-reviewer)
+[▶ Live Demo](cafe_audit_demo.html) · [⬇ Download Workbook](cafe_audit_tool.xlsx) · 
 
 ---
 
-![Dashboard preview — replace with screenshot of Dashboard_Report tab](assets/dashboard_preview.png)
+ <img width="1536" height="1024" alt="ChatGPT Image Jul 14, 2026, 06_20_33 PM" src="https://github.com/user-attachments/assets/99030acd-62a9-4f24-b7dd-425c643c8a39" />
+
 
 ---
 
