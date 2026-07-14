@@ -9,7 +9,7 @@
 
 ---
 
-[▶ Live Demo](cafe_audit_demo.html) · [⬇ Download Workbook](cafe_audit_tool.xlsx) · 
+[▶ Live Demo](https://hyvoid.github.io/Caf-audit-tool-for-efficient-reviews/) · [⬇ Download Workbook](cafe_audit_tool.xlsx) · 
 
 ---
 
